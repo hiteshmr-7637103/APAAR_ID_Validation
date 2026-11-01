@@ -1,4 +1,4 @@
-# Progress summary — Phases 1-6 complete, Phases 7-9 not started
+# Progress summary — Phases 1-8 complete, Phase 9 not started
 
 Build follows `APAAR_Ledger_Build_Spec.md` section 15's phase order. Each phase below is
 committed on `master`; tests and lint were run against a real PostgreSQL 16 for every phase
@@ -90,9 +90,36 @@ Student confirmation, selective-disclosure consent, asymmetric Ed25519 signing, 
   - `CertificateView.tsx` (`/certificates/:recordId`): Official university degree/enrolment certificate view.
 **315 tests pass.** All 15 Phase 7 verification tests and all 300 prior phase tests pass.
 
-## Explicitly not started (Phases 8-9, per spec section 15)
-- **Phase 8 — Demo mode and evaluation:** fraud-injection scenarios wired into live cases,
-  concurrency-demo endpoint, tamper-audit helper, evaluation module/page.
+## Phase 8 — Demo mode and evaluation
+Demo mode and evaluation module implemented per spec sections 13, 14, and 15:
+- Fraud Injection Scenarios (`GET /api/v1/demo/scenarios`, `POST /api/v1/demo/inject/{scenario}`):
+  - 6 interactive scenarios: `cross_duplicate` (opens DUP_EXACT_CROSS review case), `genuine_transfer` (transfer-aware logic, INFO severity, 0 cases opened), `shared_phone_ring` (Louvain community detection opens RING case), `late_admission_burst` (Isolation Forest opens ANOMALY case with Z-score attributions), `seat_over_cap` (atomic ledger flags excess and opens SEAT_OVER_CAP case), and `headcount_only` (creates non-compliant institution with RED coverage band).
+- Seat Ledger Concurrency Verification (`POST /api/v1/demo/concurrency-test`):
+  - Contention stress test launching 50 parallel concurrent admissions on a test bucket with 5 seats remaining using `ThreadPoolExecutor` and `threading.Barrier`.
+  - Verifies exact atomic enforcement: 5 clean admissions, 45 flagged over-cap, 0 lost updates, verified via PostgreSQL row-level locks.
+- Cryptographic Audit Tamper Simulator (`POST /api/v1/demo/tamper-audit`):
+  - Simulates direct database tampering on an append-only audit log entry.
+  - Verifies cryptographic break detection at the exact altered index via `/audit/verify`.
+  - Restores the original payload and confirms the cryptographic hash chain restores to 100% validity.
+- Dynamic Quota Rules Editor (`GET /api/v1/rules`, `PUT /api/v1/rules/{key}`):
+  - Rules-as-data editor with strict per-bucket schema validations and audit trail.
+- Comprehensive Evaluation Module (`backend/app/eval/run_eval.py`, `GET /api/v1/evaluation`, `POST /api/v1/evaluation/run`):
+  - Evaluates all 7 regulatory and architectural criteria per spec section 14:
+    1. Duplicate Matcher: Precision, Recall, F1, PR-AUC, Brier score, ECE on both in-distribution and held-out corruptions.
+    2. Deterministic Rules: Detection rate per injected fault vector (APAAR checksum, category mismatch, timeline age, future date).
+    3. Anomaly & Ring Detectors: Top 10% ranking rate and Louvain cluster recall.
+    4. Seat Ledger: Concurrency test invariants.
+    5. Performance: p50/p95 latency and projected 10k-row throughput.
+    6. Review-Time Saved Proxy: Automated clearance percentage and estimated human audit hours saved.
+    7. Synthetic Benchmark Notice: Disclosing synthetic benchmark parameters with controlled fault injection.
+  - Automatically writes benchmark report to `docs/evaluation.md`.
+- React UI:
+  - `DemoControlPage.tsx` (`/aicte/demo`): Interactive fraud injection cards, concurrency race runner, and audit tamper simulator.
+  - `EvaluationPage.tsx` (`/aicte/evaluation`): Live benchmark dashboard across all 7 criteria with rerun triggers.
+  - `RulesEditorPage.tsx` (`/aicte/rules`): Regulatory quota rules editor with instant JSON validation.
+**328 tests pass.** All 13 Phase 8 demo/eval tests and all 315 prior phase tests pass.
+
+## Explicitly not started (Phase 9, per spec section 15)
 - **Phase 9 — Hardening:** login rate limiting, security checklist, perf script, final full test
   run, README traceability table (PPT claim → requirement → code → test).
 

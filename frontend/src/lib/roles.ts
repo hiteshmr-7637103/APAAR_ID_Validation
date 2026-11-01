@@ -38,9 +38,9 @@ export const AREA_NAV: Record<Area, NavItem[]> = {
     { label: "Review queue", phase: 5, path: "/aicte/review" },
     { label: "Reports", phase: 6, path: "/aicte/reports" },
     { label: "Audit log", phase: 4, path: "/aicte/audit" },
-    { label: "Quota rules editor", phase: 8, roles: ["AICTE_ADMIN"] },
-    { label: "Demo mode", phase: 8, roles: ["AICTE_ADMIN"] },
-    { label: "Evaluation", phase: 8, roles: ["AICTE_ADMIN"] },
+    { label: "Quota rules editor", phase: 8, roles: ["AICTE_ADMIN"], path: "/aicte/rules" },
+    { label: "Demo mode", phase: 8, roles: ["AICTE_ADMIN"], path: "/aicte/demo" },
+    { label: "Evaluation", phase: 8, roles: ["AICTE_ADMIN"], path: "/evaluation" },
   ],
   institution: [
     { label: "Institution dashboard", phase: 4, path: "/institution/dashboard" },

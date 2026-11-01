@@ -18,6 +18,9 @@ import { PublicVerifyPage } from "./pages/PublicVerify";
 import { StudentPortalPage } from "./pages/StudentPortal";
 import { VerifierPortalPage } from "./pages/VerifierPortal";
 import { CertificateViewPage } from "./pages/CertificateView";
+import { EvaluationPage } from "./pages/EvaluationPage";
+import { DemoControlPage } from "./pages/DemoControlPage";
+import { RulesEditorPage } from "./pages/RulesEditorPage";
 
 function RootRedirect() {
   const { user, loading } = useAuth();
@@ -115,6 +118,31 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/aicte/demo"
+        element={
+          <ProtectedRoute roles={["AICTE_ADMIN"]}>
+            <DemoControlPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/aicte/rules"
+        element={
+          <ProtectedRoute roles={["AICTE_ADMIN"]}>
+            <RulesEditorPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/aicte/evaluation"
+        element={
+          <ProtectedRoute roles={["AICTE_ADMIN", "AICTE_REVIEWER"]}>
+            <EvaluationPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/evaluation" element={<EvaluationPage />} />
       <Route path="/verify" element={<PublicVerifyPage />} />
       <Route
         path="/student/portal"

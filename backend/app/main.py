@@ -12,6 +12,7 @@ from app.api import (
     confirmations,
     dashboards,
     demo,
+    evaluation,
     institutions,
     mock_apaar,
     reports,
@@ -91,6 +92,7 @@ def create_app() -> FastAPI:
     api.include_router(verification.router)
     api.include_router(audit.router)
     api.include_router(demo.router)
+    api.include_router(evaluation.router)
     app.include_router(api)
     app.add_api_route("/health", health, methods=["GET"], tags=["ops"], include_in_schema=False)
     app.add_api_route(

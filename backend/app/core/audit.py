@@ -141,8 +141,9 @@ def verify(db: Session) -> dict[str, Any]:
     `hash_mismatch` (its content was changed)."""
     prev = GENESIS_HASH
     count = 0
-    stmt = select(AuditLog).order_by(AuditLog.id).execution_options(yield_per=2000)
-    for index, row in enumerate(db.scalars(stmt)):
+    stmt = select(AuditLog).order_by(AuditLog.id)
+    rows = list(db.scalars(stmt).all())
+    for index, row in enumerate(rows):
         count += 1
         if row.prev_hash != prev:
             return _broken(index, row, "prev_hash_mismatch", prev, count)
