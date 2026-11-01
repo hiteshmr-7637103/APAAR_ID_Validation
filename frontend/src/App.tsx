@@ -7,7 +7,9 @@ import { LoginPage } from "./pages/LoginPage";
 import { PortalHome } from "./pages/PortalHome";
 import { ApprovalsPage } from "./pages/Approvals";
 import { AuditLogPage } from "./pages/AuditLog";
+import { InstitutionCasesPage } from "./pages/InstitutionCases";
 import { InstitutionDashboardPage } from "./pages/InstitutionDashboard";
+import { ReviewQueuePage } from "./pages/ReviewQueue";
 import { StudentRecordFormPage } from "./pages/StudentRecordForm";
 import { UploadWizardPage } from "./pages/UploadWizard";
 
@@ -68,10 +70,26 @@ export default function App() {
         }
       />
       <Route
+        path="/institution/cases"
+        element={
+          <ProtectedRoute roles={["INST_MAKER", "INST_CHECKER"]}>
+            <InstitutionCasesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/aicte/audit"
         element={
           <ProtectedRoute roles={["AICTE_ADMIN", "AICTE_REVIEWER"]}>
             <AuditLogPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/aicte/review"
+        element={
+          <ProtectedRoute roles={["AICTE_ADMIN", "AICTE_REVIEWER"]}>
+            <ReviewQueuePage />
           </ProtectedRoute>
         }
       />

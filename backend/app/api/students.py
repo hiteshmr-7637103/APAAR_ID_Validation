@@ -72,6 +72,9 @@ def create_student_record(
         resolve_institution(db, user, body.institution_id),
     )
     result = create_record(db, inp, user, body.justification)
+    from app.services import triage
+
+    triage.triage_duplicate_records(db, [result.record.id])
     db.commit()
     rec = result.record
     return {

@@ -11,11 +11,13 @@ import os
 from pathlib import Path
 
 import pytest
+from sqlalchemy.engine import make_url
 
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://apaar:apaar@localhost:5432/apaar_test"
 )
-if not TEST_DATABASE_URL.rsplit("/", 1)[-1].split("?")[0].endswith("_test"):
+_db_name = make_url(TEST_DATABASE_URL).database or ""
+if not _db_name.endswith("_test"):
     raise RuntimeError("Refusing to run tests: TEST_DATABASE_URL must point to a *_test database")
 # Must be set before the app (and its engine) is imported.
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL

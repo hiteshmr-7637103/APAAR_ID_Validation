@@ -44,10 +44,17 @@ tamper test: editing row 4 is reported at exactly index 3 (0-indexed) by `/audit
 deleting a row is caught at the row after it. Idempotency and maker-checker rules verified by
 test and by an HTTP smoke run.
 
-## Explicitly not started (Phases 5-9, per spec section 15)
-- **Phase 5 — ML triage:** duplicate matcher (LightGBM + calibration), institution anomaly
-  detector (IsolationForest), shared-identity ring detector (Louvain), programme-name
-  normaliser (TF-IDF). A hook point exists in the submit pipeline (D70) but nothing runs there.
+## Phase 5 — ML triage and Review Queue
+ML triage engine implemented per spec sections 9, 11, 13, and 15:
+- ML-1: Pairwise feature extraction, phonetic/lexical candidate blocking, calibrated LightGBM duplicate matcher, transfer-aware duplicate suppression (early exit when enrolment ended on/before admission date), priority routing (>=0.90 priority 1, 0.60–0.90 priority 2).
+- ML-2: Institution anomaly detector using Isolation Forest trained on 9 peer-normalized metrics with peer z-score explanation vectors.
+- ML-3: Shared-identity ring detector using bipartite graphs between records and contact tokens, Louvain community clustering across institutions.
+- ML-4: Programme-name normaliser using character 2-4 gram TF-IDF vectorizer and cosine similarity against canonical catalog.
+- AICTE Review Queue endpoints (`GET /api/v1/cases`, `GET /api/v1/cases/{id}`, `POST /api/v1/cases/{id}/decision`) with full audit logging and feedback loop (`ml_feedback` table and `retrain_with_feedback`).
+- React Review Queue UI (`/aicte/review`) with case filters, comparative diff inspector, anomaly z-score graphs, and decision actions; Institution Cases UI (`/institution/cases`) with strict privacy isolation (AICTE_ONLY cases 404 for institutions).
+**286 tests pass.** Full ML pipeline, F1 >= 0.85 floor, retrain loop, RBAC, transfer-awareness, and critical edge cases verified.
+
+## Explicitly not started (Phases 6-9, per spec section 15)
 - **Phase 6 — Dashboards and reports:** AICTE dashboard, SSE live updates, coverage meter, risk
   score, CSV reports.
 - **Phase 7 — Student confirmation and verification:** T3 confirmation/dispute, consent flow,

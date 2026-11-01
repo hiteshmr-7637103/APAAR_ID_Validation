@@ -57,7 +57,7 @@ from app.db.models import (
     User,
     ValidationResult,
 )
-from app.services import seat_ledger, trust
+from app.services import seat_ledger, triage, trust
 from app.services.cases import persist_case_specs
 from app.services.quota import active_rules
 from app.services.records import insert_records_bulk, outcome_rows
@@ -955,8 +955,10 @@ def submit(
     for i in range(0, len(result_rows), 5000):
         db.execute(insert(ValidationResult), result_rows[i : i + 5000])
     tiers = trust.bulk_apply(db, tier_items)
-    # FR-17: ML triage (blocking + calibrated pairwise scoring) runs here as a background
-    # task from Phase 5. It only opens cases; it never changes status or tier (NFR-8).
+    # FR-17: ML triage (blocking + calibrated pairwise scoring) runs here
+    # It only opens cases; it never changes status or tier (NFR-8).
+    stored_rids = [rid for _, _, rid, _ in stored]
+    ml_triage_result = triage.triage_submission(db, stored_rids)
 
     now = datetime.now(UTC)
     batch.status = BatchStatus.PENDING_APPROVAL
@@ -982,7 +984,7 @@ def submit(
             }
             for (ip_id, key), ids in sorted(by_bucket.items(), key=lambda kv: kv[0][0])
         ],
-        "ml_triage": "deferred to Phase 5",
+        "ml_triage": ml_triage_result,
         "submitted_at": now.isoformat(),
     }
     batch.submit_json = result

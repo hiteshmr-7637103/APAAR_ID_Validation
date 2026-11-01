@@ -1,14 +1,23 @@
-"""Cases (spec 8): GET /cases, GET /cases/{id}, POST /cases/{id}/decision.
+"""Cases and Review Queue API (spec 5.5, FR-17b; spec 8).
 
-Visibility goes through `rbac.scope_cases`: institution users only ever receive their own
-`INSTITUTION`-visible cases, never `AICTE_ONLY` ones. Phase 3 supports decisions on
-SEAT_OVER_CAP cases (FR-11); the other decision types arrive with the review queue
-(Phase 5).
+Endpoints:
+- `GET /cases`: list cases with filters (type, status, priority, institution_id).
+  Institution users only ever receive their own `INSTITUTION`-visible cases;
+  `AICTE_ONLY` cases are never returned to institution callers.
+- `GET /cases/{id}`: case details including evidence_json and explanation_json.
+- `POST /cases/{id}/decision`: human reviewer decisions by case type:
+  - `SEAT_OVER_CAP`: ACCEPT_EXCEPTION | REQUEST_CORRECTION (FR-11)
+  - `DUP_FUZZY` / `DUP_EXACT_CROSS`: CONFIRM_DUPLICATE | NOT_DUPLICATE |
+    ESCALATE | REQUEST_CORRECTION
+  - `ANOMALY`: ACKNOWLEDGE | ESCALATE | DISMISS
+  - `RING`: CONFIRM | DISMISS | ESCALATE
+  - `TIMELINE`: ACKNOWLEDGE | REQUEST_CORRECTION | DISMISS
+  Decisions on ML duplicate cases append labels to `ml_feedback`.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query
@@ -19,7 +28,7 @@ from sqlalchemy.orm import Session
 from app.core import audit
 from app.core.errors import ApiError
 from app.core.rbac import AICTE_ROLES, INSTITUTION_ROLES, require_roles, scope_cases
-from app.db.models import Case, CaseStatus, CaseType, User
+from app.db.models import Case, CaseStatus, CaseType, MlFeedback, User
 from app.db.session import get_db
 from app.services import seat_ledger
 
@@ -47,7 +56,16 @@ class CaseOut(BaseModel):
 
 
 class Decision(BaseModel):
-    action: Literal["ACCEPT_EXCEPTION", "REQUEST_CORRECTION"]
+    action: Literal[
+        "ACCEPT_EXCEPTION",
+        "REQUEST_CORRECTION",
+        "CONFIRM_DUPLICATE",
+        "NOT_DUPLICATE",
+        "ACKNOWLEDGE",
+        "CONFIRM",
+        "DISMISS",
+        "ESCALATE",
+    ]
     note: str = Field(..., min_length=3, max_length=2000)
     record_ids: list[int] | None = Field(
         None, description="REQUEST_CORRECTION only; default: every flagged record"
@@ -91,7 +109,7 @@ def get_case(
     return case
 
 
-@router.post("/{case_id}/decision", summary="Human decision on a case (FR-11 for over-cap)")
+@router.post("/{case_id}/decision", summary="Human decision on a case (FR-11, FR-17b)")
 def decide_case(
     case_id: int,
     body: Decision,
@@ -101,18 +119,96 @@ def decide_case(
     case = db.scalar(scope_cases(select(Case).where(Case.id == case_id), user))
     if case is None:
         raise _not_found()
-    if case.type != CaseType.SEAT_OVER_CAP:
-        raise ApiError(
-            400,
-            "CASE_TYPE_UNSUPPORTED",
-            "Decisions on this case type arrive with the review queue (Phase 5).",
-            "errors.case_type_unsupported",
+
+    if case.status not in (CaseStatus.OPEN, CaseStatus.ESCALATED):
+        raise ApiError(409, "CASE_ALREADY_DECIDED", "This case has already been decided.")
+
+    now = datetime.now(UTC)
+
+    # 1. Seat Over-Cap decision
+    if case.type == CaseType.SEAT_OVER_CAP:
+        if body.action not in ("ACCEPT_EXCEPTION", "REQUEST_CORRECTION"):
+            raise ApiError(422, "ACTION_INVALID", "Invalid action for SEAT_OVER_CAP case.")
+        result = seat_ledger.decide_over_cap_case(
+            db, case, body.action, body.note, user, record_ids=body.record_ids
         )
-    if body.record_ids is not None and body.action != seat_ledger.REQUEST_CORRECTION:
-        raise ApiError(422, "DECISION_INVALID", "record_ids applies to REQUEST_CORRECTION only.")
-    result = seat_ledger.decide_over_cap_case(
-        db, case, body.action, body.note, user, record_ids=body.record_ids
-    )
+
+    # 2. Duplicate decision (Fuzzy or Exact Cross)
+    elif case.type in (CaseType.DUP_FUZZY, CaseType.DUP_EXACT_CROSS):
+        if body.action == "CONFIRM_DUPLICATE" or body.action == "CONFIRM":
+            case.status = CaseStatus.CONFIRMED
+        elif body.action == "NOT_DUPLICATE" or body.action == "DISMISS":
+            case.status = CaseStatus.DISMISSED
+        elif body.action == "ESCALATE":
+            case.status = CaseStatus.ESCALATED
+        elif body.action in ("ACCEPT_EXCEPTION",):
+            raise ApiError(
+                400,
+                "CASE_TYPE_UNSUPPORTED",
+                "ACCEPT_EXCEPTION is only valid for SEAT_OVER_CAP cases.",
+                "errors.case_type_unsupported",
+            )
+        else:
+            raise ApiError(
+                422, "ACTION_INVALID", f"Invalid action {body.action} for duplicate case."
+            )
+
+        case.decided_by = user.id
+        case.decided_at = now
+        case.decision_note = body.note
+
+        # Log ML feedback for duplicate cases if features exist
+        feats = (case.evidence_json or {}).get("features")
+        label = "CONFIRMED" if case.status == CaseStatus.CONFIRMED else "DISMISSED"
+        db.add(MlFeedback(case_id=case.id, label=label, features_json=feats))
+        result = {"case_status": case.status.value, "feedback_recorded": bool(feats)}
+
+    # 3. Anomaly decision
+    elif case.type == CaseType.ANOMALY:
+        if body.action in ("ACKNOWLEDGE", "DISMISS"):
+            case.status = CaseStatus.RESOLVED
+        elif body.action == "ESCALATE":
+            case.status = CaseStatus.ESCALATED
+        else:
+            raise ApiError(422, "ACTION_INVALID", f"Invalid action {body.action} for anomaly case.")
+
+        case.decided_by = user.id
+        case.decided_at = now
+        case.decision_note = body.note
+        result = {"case_status": case.status.value}
+
+    # 4. Ring decision
+    elif case.type == CaseType.RING:
+        if body.action == "CONFIRM":
+            case.status = CaseStatus.CONFIRMED
+        elif body.action == "DISMISS":
+            case.status = CaseStatus.DISMISSED
+        elif body.action == "ESCALATE":
+            case.status = CaseStatus.ESCALATED
+        else:
+            raise ApiError(422, "ACTION_INVALID", f"Invalid action {body.action} for ring case.")
+
+        case.decided_by = user.id
+        case.decided_at = now
+        case.decision_note = body.note
+        result = {"case_status": case.status.value}
+
+    # 5. Timeline / Other decision
+    elif case.type in (CaseType.TIMELINE, CaseType.RULE_WARNING, CaseType.STUDENT_DISPUTE):
+        if body.action in ("ACKNOWLEDGE", "REQUEST_CORRECTION", "DISMISS"):
+            case.status = CaseStatus.RESOLVED
+        elif body.action == "ESCALATE":
+            case.status = CaseStatus.ESCALATED
+        else:
+            case.status = CaseStatus.CONFIRMED
+
+        case.decided_by = user.id
+        case.decided_at = now
+        case.decision_note = body.note
+        result = {"case_status": case.status.value}
+    else:
+        raise ApiError(400, "CASE_TYPE_UNSUPPORTED", f"Unsupported case type {case.type}")
+
     audit.record(
         db,
         "CASE_DECISION",
@@ -122,9 +218,8 @@ def decide_case(
         detail={
             "case_type": str(case.type),
             "action": body.action,
-            "records": result.get("records", []),
-            "released": result.get("released", []),
-            "case_status": result.get("case_status"),
+            "case_status": case.status.value,
+            "note": body.note,
         },
     )
     db.commit()

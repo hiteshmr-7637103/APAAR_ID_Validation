@@ -35,7 +35,7 @@ export interface NavItem {
 export const AREA_NAV: Record<Area, NavItem[]> = {
   aicte: [
     { label: "National dashboard", phase: 6 },
-    { label: "Review queue", phase: 5 },
+    { label: "Review queue", phase: 5, path: "/aicte/review" },
     { label: "Reports", phase: 6 },
     { label: "Audit log", phase: 4, path: "/aicte/audit" },
     { label: "Quota rules editor", phase: 8, roles: ["AICTE_ADMIN"] },
@@ -52,7 +52,7 @@ export const AREA_NAV: Record<Area, NavItem[]> = {
     },
     { label: "Upload wizard", phase: 4, roles: ["INST_MAKER"], path: "/institution/uploads" },
     { label: "Approvals", phase: 4, roles: ["INST_CHECKER"], path: "/institution/approvals" },
-    { label: "Cases", phase: 5 },
+    { label: "Cases", phase: 5, path: "/institution/cases" },
   ],
   verifier: [{ label: "Verification requests", phase: 7 }],
   student: [

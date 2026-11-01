@@ -7,6 +7,7 @@ Later phases add /demo/inject/{scenario}, /demo/retrain, /demo/concurrency-test 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core import audit
@@ -43,3 +44,44 @@ def demo_seed(
     )
     db.commit()
     return summary
+
+
+@router.post("/retrain", summary="Retrain duplicate matcher with reviewer feedback (FR-17b)")
+def demo_retrain(
+    user: User = Depends(require_roles(Role.AICTE_ADMIN)),
+    db: Session = Depends(get_db),
+) -> dict:
+    from app.ml.train import retrain_with_feedback
+
+    report = retrain_with_feedback(db)
+    audit.record(
+        db,
+        "ML_RETRAIN",
+        actor=user,
+        entity_type="model",
+        entity_id=1,
+        detail=report,
+    )
+    db.commit()
+    return {"status": "ok", "report": report}
+
+
+@router.post("/triage", summary="Trigger full ML triage (duplicates, rings, anomalies)")
+def demo_triage(
+    user: User = Depends(require_roles(Role.AICTE_ADMIN)),
+    db: Session = Depends(get_db),
+) -> dict:
+    from app.db.models import StudentRecord
+    from app.services import triage
+
+    rec_ids = list(db.scalars(select(StudentRecord.id).limit(10000)).all())
+    dup_cases = triage.triage_duplicate_records(db, rec_ids)
+    ring_cases = triage.triage_rings(db)
+    anom_cases = triage.triage_anomalies(db)
+    db.commit()
+    return {
+        "status": "ok",
+        "duplicate_cases_opened": len(dup_cases),
+        "ring_cases_opened": len(ring_cases),
+        "anomaly_cases_opened": len(anom_cases),
+    }

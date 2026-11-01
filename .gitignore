@@ -8,6 +8,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+.python/
 
 # node
 node_modules/
