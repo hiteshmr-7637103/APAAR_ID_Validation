@@ -13,6 +13,7 @@ from app.api import (
     demo,
     institutions,
     mock_apaar,
+    reports,
     review,
     rules_admin,
     students,
@@ -79,6 +80,7 @@ def create_app() -> FastAPI:
     api.include_router(rules_admin.router)
     api.include_router(uploads.router)
     api.include_router(dashboards.router)
+    api.include_router(reports.router)
     api.include_router(audit.router)
     api.include_router(demo.router)
     app.include_router(api)

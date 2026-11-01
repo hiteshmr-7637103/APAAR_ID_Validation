@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.errors import ApiError
+from app.core.events import event_bus
 from app.core.rbac import AICTE_ROLES, INSTITUTION_ROLES, require_roles, scope_to_institution
 from app.db.models import BatchStatus, Role, UploadBatch, User
 from app.db.session import get_db
@@ -268,6 +269,7 @@ def approve_batch(
     batch = load_batch(db, user, batch_id, lock=True)
     out = uploads.decide(db, batch, user, True, body.note)
     db.commit()
+    event_bus.publish_threadsafe("batch_decided", {"batch_id": batch.id, "approved": True})
     return out
 
 
@@ -281,4 +283,5 @@ def reject_batch(
     batch = load_batch(db, user, batch_id, lock=True)
     out = uploads.decide(db, batch, user, False, body.note)
     db.commit()
+    event_bus.publish_threadsafe("batch_decided", {"batch_id": batch.id, "approved": False})
     return out

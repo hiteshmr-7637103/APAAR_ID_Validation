@@ -1,4 +1,4 @@
-# Progress summary — Phases 1-4 complete, Phases 5-9 not started
+# Progress summary — Phases 1-6 complete, Phases 7-9 not started
 
 Build follows `APAAR_Ledger_Build_Spec.md` section 15's phase order. Each phase below is
 committed on `master`; tests and lint were run against a real PostgreSQL 16 for every phase
@@ -54,9 +54,19 @@ ML triage engine implemented per spec sections 9, 11, 13, and 15:
 - React Review Queue UI (`/aicte/review`) with case filters, comparative diff inspector, anomaly z-score graphs, and decision actions; Institution Cases UI (`/institution/cases`) with strict privacy isolation (AICTE_ONLY cases 404 for institutions).
 **286 tests pass.** Full ML pipeline, F1 >= 0.85 floor, retrain loop, RBAC, transfer-awareness, and critical edge cases verified.
 
-## Explicitly not started (Phases 6-9, per spec section 15)
-- **Phase 6 — Dashboards and reports:** AICTE dashboard, SSE live updates, coverage meter, risk
-  score, CSV reports.
+## Phase 6 — Dashboards and Reports
+Dashboards and regulatory reports engine implemented per spec sections 5.6 (FR-21 to FR-25), 8, and 15:
+- AICTE National Apex Dashboard (`GET /api/v1/dashboards/aicte`): National KPIs (institutions, students, intake vs enrolment, over-cap counts, excess seats), state breakdown, open cases summary, coverage distribution, trust tier split, risk leaderboard.
+- Server-Sent Events (SSE) live updates stream (`GET /api/v1/dashboards/events/stream`): real-time auto-refresh on batch decisions and review case actions via `event_bus`.
+- Headcount Coverage Meter (`GET /api/v1/dashboards/coverage` and `GET /api/v1/dashboards/institutions/{id}/coverage`): ratio of verified received student records to declared institutional headcount with configurable bands (RED < 50%, AMBER 50-89.9%, GREEN >= 90%).
+- Data Health Score (`GET /api/v1/dashboards/institutions/{id}/health-score`): composite score 0-100 across completeness, validity, timeliness, and clean share with qualitative rating badges.
+- Institution Risk Ranking (`GET /api/v1/dashboards/institutions/risk-ranking`): composite 4-factor risk score (`0.35 anomaly + 0.25 duplicate_rate + 0.20 ring_flags + 0.20 rule_violations`) with transparent breakdown and regulatory alert templates.
+- Institution Dashboard: embedded coverage meter and Data Health Score (deferred block removed).
+- 7 Regulatory & Statutory Reports (`GET /api/v1/reports` and `GET /api/v1/reports/{name}`): CSV exports and JSON previews with academic year and state filters (`enrolment-vs-intake`, `supernumerary-utilisation`, `over-cap-flags`, `cross-institution-duplicates`, `coverage`, `risk-ranking`, `trust-tiers`).
+- React UI: `AicteDashboardPage` (`/aicte/dashboard`) with SSE live update indicator, `ReportsPage` (`/aicte/reports`) with preview and direct CSV downloads, updated `InstitutionDashboardPage` (`/institution/dashboard`).
+**300 tests pass.** All 7 reports, aggregations, RBAC, coverage bands, health score, risk ranking, and SSE verified.
+
+## Explicitly not started (Phases 7-9, per spec section 15)
 - **Phase 7 — Student confirmation and verification:** T3 confirmation/dispute, consent flow,
   Ed25519 signed records + offline-verifiable QR, revocation, access log, certificate view,
   public `/verify` page.

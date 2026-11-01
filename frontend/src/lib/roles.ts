@@ -34,9 +34,9 @@ export interface NavItem {
 /** Navigation per portal. Items without a `path` are screens of later phases. */
 export const AREA_NAV: Record<Area, NavItem[]> = {
   aicte: [
-    { label: "National dashboard", phase: 6 },
+    { label: "National dashboard", phase: 6, path: "/aicte/dashboard" },
     { label: "Review queue", phase: 5, path: "/aicte/review" },
-    { label: "Reports", phase: 6 },
+    { label: "Reports", phase: 6, path: "/aicte/reports" },
     { label: "Audit log", phase: 4, path: "/aicte/audit" },
     { label: "Quota rules editor", phase: 8, roles: ["AICTE_ADMIN"] },
     { label: "Demo mode", phase: 8, roles: ["AICTE_ADMIN"] },

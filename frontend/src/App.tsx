@@ -7,8 +7,10 @@ import { LoginPage } from "./pages/LoginPage";
 import { PortalHome } from "./pages/PortalHome";
 import { ApprovalsPage } from "./pages/Approvals";
 import { AuditLogPage } from "./pages/AuditLog";
+import { AicteDashboardPage } from "./pages/AicteDashboard";
 import { InstitutionCasesPage } from "./pages/InstitutionCases";
 import { InstitutionDashboardPage } from "./pages/InstitutionDashboard";
+import { ReportsPage } from "./pages/ReportsPage";
 import { ReviewQueuePage } from "./pages/ReviewQueue";
 import { StudentRecordFormPage } from "./pages/StudentRecordForm";
 import { UploadWizardPage } from "./pages/UploadWizard";
@@ -82,6 +84,22 @@ export default function App() {
         element={
           <ProtectedRoute roles={["AICTE_ADMIN", "AICTE_REVIEWER"]}>
             <AuditLogPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/aicte/dashboard"
+        element={
+          <ProtectedRoute roles={["AICTE_ADMIN", "AICTE_REVIEWER"]}>
+            <AicteDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/aicte/reports"
+        element={
+          <ProtectedRoute roles={["AICTE_ADMIN", "AICTE_REVIEWER"]}>
+            <ReportsPage />
           </ProtectedRoute>
         }
       />

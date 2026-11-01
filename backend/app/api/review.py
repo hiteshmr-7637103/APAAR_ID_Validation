@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from app.core import audit
 from app.core.errors import ApiError
+from app.core.events import event_bus
 from app.core.rbac import AICTE_ROLES, INSTITUTION_ROLES, require_roles, scope_cases
 from app.db.models import Case, CaseStatus, CaseType, MlFeedback, User
 from app.db.session import get_db
@@ -224,4 +225,8 @@ def decide_case(
     )
     db.commit()
     db.refresh(case)
+    event_bus.publish_threadsafe(
+        "case_updated",
+        {"case_id": case.id, "case_type": str(case.type), "status": case.status.value},
+    )
     return {**result, "case": CaseOut.model_validate(case).model_dump(mode="json")}

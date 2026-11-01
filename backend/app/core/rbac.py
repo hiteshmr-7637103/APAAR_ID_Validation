@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import jwt
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import Select, false
 from sqlalchemy.orm import Session
@@ -36,12 +36,15 @@ def _unauthorized(message: str = "Authentication required.") -> ApiError:
 
 
 def get_current_user(
-    token: str | None = Depends(oauth2_scheme), db: Session = Depends(get_db)
+    request: Request,
+    token: str | None = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
 ) -> User:
-    if not token:
+    effective_token = token or request.query_params.get("token")
+    if not effective_token:
         raise _unauthorized()
     try:
-        payload = decode_token(token, expected_type="access")
+        payload = decode_token(effective_token, expected_type="access")
         user_id = int(payload["sub"])
     except (jwt.InvalidTokenError, ValueError, KeyError):
         raise _unauthorized(
