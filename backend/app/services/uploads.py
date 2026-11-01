@@ -28,7 +28,7 @@ import io
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import delete, func, insert, select, update
@@ -42,6 +42,8 @@ from app.core.errors import ApiError
 from app.db.models import (
     BatchSource,
     BatchStatus,
+    ConfirmationStatus,
+    EnrolmentConfirmation,
     InstitutionProgramme,
     LedgerKey,
     Notification,
@@ -1062,7 +1064,18 @@ def decide(db: Session, batch: UploadBatch, actor: User, approve: bool, note: st
                 .where(StudentRecord.id.in_(pending))
                 .values(status=RecordStatus.ACTIVE)
             )
-        # FR-19 (Phase 7): ACTIVE records will get an enrolment confirmation request here.
+            # FR-19: Create enrolment confirmations for all activated records
+            conf_now = datetime.now(UTC)
+            conf_expires = conf_now + timedelta(days=30)
+            for rid in pending:
+                db.add(
+                    EnrolmentConfirmation(
+                        student_record_id=rid,
+                        status=ConfirmationStatus.PENDING,
+                        requested_at=conf_now,
+                        expires_at=conf_expires,
+                    )
+                )
         batch.status = BatchStatus.APPROVED
         detail = {
             "activated": len(pending),

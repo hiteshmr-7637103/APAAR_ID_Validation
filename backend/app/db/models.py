@@ -448,6 +448,7 @@ class StudentRecord(Base):
     )
 
     student: Mapped[Student] = relationship(back_populates="records")
+    institution: Mapped[Institution] = relationship()
     institution_programme: Mapped[InstitutionProgramme] = relationship()
 
 

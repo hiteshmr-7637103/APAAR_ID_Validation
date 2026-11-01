@@ -54,11 +54,11 @@ export const AREA_NAV: Record<Area, NavItem[]> = {
     { label: "Approvals", phase: 4, roles: ["INST_CHECKER"], path: "/institution/approvals" },
     { label: "Cases", phase: 5, path: "/institution/cases" },
   ],
-  verifier: [{ label: "Verification requests", phase: 7 }],
+  verifier: [{ label: "Verification requests", phase: 7, path: "/verifier/portal" }],
   student: [
-    { label: "My enrolments", phase: 7 },
-    { label: "Consent requests", phase: 7 },
-    { label: "Access log", phase: 7 },
+    { label: "My enrolments", phase: 7, path: "/student/portal" },
+    { label: "Consent requests", phase: 7, path: "/student/portal" },
+    { label: "Access log", phase: 7, path: "/student/portal" },
   ],
 };
 

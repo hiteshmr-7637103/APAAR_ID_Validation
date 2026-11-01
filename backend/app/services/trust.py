@@ -24,6 +24,7 @@ REASON_T1 = "Passed deterministic rule checks with no ERROR (FR-18 T1)"
 REASON_T2 = (
     "APAAR ID matched the registry adapter (MOCK): name fuzzy match and exact DOB (FR-18 T2)"
 )
+REASON_T3 = "Enrolment confirmed by student (FR-18 T3, FR-19)"
 REASON_RESET = "Material edit ({fields}): tier reset to T1 and checks re-run (FR-4, FR-18)"
 
 ACTOR_RULES = "system:rule_engine"

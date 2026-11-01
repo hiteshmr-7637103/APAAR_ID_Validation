@@ -14,6 +14,10 @@ import { ReportsPage } from "./pages/ReportsPage";
 import { ReviewQueuePage } from "./pages/ReviewQueue";
 import { StudentRecordFormPage } from "./pages/StudentRecordForm";
 import { UploadWizardPage } from "./pages/UploadWizard";
+import { PublicVerifyPage } from "./pages/PublicVerify";
+import { StudentPortalPage } from "./pages/StudentPortal";
+import { VerifierPortalPage } from "./pages/VerifierPortal";
+import { CertificateViewPage } from "./pages/CertificateView";
 
 function RootRedirect() {
   const { user, loading } = useAuth();
@@ -108,6 +112,40 @@ export default function App() {
         element={
           <ProtectedRoute roles={["AICTE_ADMIN", "AICTE_REVIEWER"]}>
             <ReviewQueuePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/verify" element={<PublicVerifyPage />} />
+      <Route
+        path="/student/portal"
+        element={
+          <ProtectedRoute roles={["STUDENT"]}>
+            <StudentPortalPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/verifier/portal"
+        element={
+          <ProtectedRoute roles={["VERIFIER", "AICTE_ADMIN", "AICTE_REVIEWER"]}>
+            <VerifierPortalPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/certificates/:recordId"
+        element={
+          <ProtectedRoute
+            roles={[
+              "STUDENT",
+              "VERIFIER",
+              "AICTE_ADMIN",
+              "AICTE_REVIEWER",
+              "INST_MAKER",
+              "INST_CHECKER",
+            ]}
+          >
+            <CertificateViewPage />
           </ProtectedRoute>
         }
       />

@@ -66,10 +66,31 @@ Dashboards and regulatory reports engine implemented per spec sections 5.6 (FR-2
 - React UI: `AicteDashboardPage` (`/aicte/dashboard`) with SSE live update indicator, `ReportsPage` (`/aicte/reports`) with preview and direct CSV downloads, updated `InstitutionDashboardPage` (`/institution/dashboard`).
 **300 tests pass.** All 7 reports, aggregations, RBAC, coverage bands, health score, risk ranking, and SSE verified.
 
-## Explicitly not started (Phases 7-9, per spec section 15)
-- **Phase 7 — Student confirmation and verification:** T3 confirmation/dispute, consent flow,
-  Ed25519 signed records + offline-verifiable QR, revocation, access log, certificate view,
-  public `/verify` page.
+## Phase 7 — Student Confirmation and Verification
+Student confirmation, selective-disclosure consent, asymmetric Ed25519 signing, and offline verification implemented per spec sections 5.7 (FR-26 to FR-34, FR-36), 8, 12, and 15:
+- Student Enrolments & Confirmation (`GET /api/v1/students/me/enrolments`, `POST /api/v1/enrolments/{id}/confirm`): Confirmation elevates student record to T3 (highest trust tier) and publishes `trust_tier_updated` event.
+- Dispute Enrolment (`POST /api/v1/enrolments/{id}/dispute`): "Not me" marks confirmation as DISPUTED, keeps tier unchanged, and opens a `STUDENT_DISPUTE` case (AICTE-only visibility, priority 1).
+- Outbox Enrolment Confirmation Generator: batch approval automatically populates pending confirmations with 30-day expiration window.
+- Consent Management (`POST /api/v1/verify/requests`, `GET /api/v1/consent/requests`, `POST /api/v1/consent/{id}/grant`, `POST /api/v1/consent/{id}/deny`, `POST /api/v1/consent/{id}/revoke`):
+  - Verification requests by verified employers/institutions with purposeful scope.
+  - Student granular selective disclosure (checkboxes for only chosen fields).
+  - Consent revocation updates consent status, revokes signed credential hash into the revocation list, and blocks future access.
+- Cryptographic Signing Engine (`app.services.signing`):
+  - Active Ed25519 keypair generation and rotation storage with encrypted private keys.
+  - Canonical JSON serialization (sorted keys, compact separators, UTF-8).
+  - Compact QR payload generation and PNG rendering (`qrcode` + `Pillow`).
+  - Dual-mode offline verifier (`POST /api/v1/verify/offline`): verifies both full selective-disclosure JSON bundles and compact QR payloads against public keys, expiry dates, and revocation registry.
+- Student Verification Access Log (`GET /api/v1/students/me/access-log`): complete privacy-preserving log of verifiers, timestamps, purpose, and disclosed fields.
+- Official Certificate View (`GET /api/v1/certificates/{record_id}`): printable verification certificate with APAAR ID right next to student ID, trust tier seal, and signed compact QR code.
+- Public Endpoints (`/.well-known/public-key`, `/api/v1/revocations`, `/api/v1/verify/offline`).
+- React UI:
+  - `StudentPortal.tsx` (`/student/portal`): Enrolments with T3 Confirm & Dispute actions, pending Consent requests with selective disclosure checkboxes, and detailed Access log.
+  - `VerifierPortal.tsx` (`/verifier/portal`): Submit verification requests, track decisions, and inspect verified records with live QR preview.
+  - `PublicVerify.tsx` (`/verify`): Public offline Ed25519 verifier with sample valid payload, QR code scanner simulator, and tamper demonstration buttons.
+  - `CertificateView.tsx` (`/certificates/:recordId`): Official university degree/enrolment certificate view.
+**315 tests pass.** All 15 Phase 7 verification tests and all 300 prior phase tests pass.
+
+## Explicitly not started (Phases 8-9, per spec section 15)
 - **Phase 8 — Demo mode and evaluation:** fraud-injection scenarios wired into live cases,
   concurrency-demo endpoint, tamper-audit helper, evaluation module/page.
 - **Phase 9 — Hardening:** login rate limiting, security checklist, perf script, final full test

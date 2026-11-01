@@ -9,6 +9,7 @@ from sqlalchemy import text
 from app.api import (
     audit,
     auth,
+    confirmations,
     dashboards,
     demo,
     institutions,
@@ -20,6 +21,7 @@ from app.api import (
     uploads,
     users,
     validation,
+    verification,
 )
 from app.core.config import settings
 from app.core.errors import install_error_handlers
@@ -29,9 +31,13 @@ from app.db.session import engine
 # /.well-known/public-key and /revocations here.
 PUBLIC_PATHS = {
     "/health",
+    "/.well-known/public-key",
     f"{settings.api_prefix}/health",
     f"{settings.api_prefix}/auth/login",
     f"{settings.api_prefix}/auth/refresh",
+    f"{settings.api_prefix}/.well-known/public-key",
+    f"{settings.api_prefix}/revocations",
+    f"{settings.api_prefix}/verify/offline",
 }
 
 
@@ -81,10 +87,19 @@ def create_app() -> FastAPI:
     api.include_router(uploads.router)
     api.include_router(dashboards.router)
     api.include_router(reports.router)
+    api.include_router(confirmations.router)
+    api.include_router(verification.router)
     api.include_router(audit.router)
     api.include_router(demo.router)
     app.include_router(api)
     app.add_api_route("/health", health, methods=["GET"], tags=["ops"], include_in_schema=False)
+    app.add_api_route(
+        "/.well-known/public-key",
+        verification.get_public_key,
+        methods=["GET"],
+        tags=["verification"],
+        include_in_schema=False,
+    )
     return app
 
 
