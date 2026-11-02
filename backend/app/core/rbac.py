@@ -13,7 +13,7 @@ from collections.abc import Callable
 import jwt
 from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import Select, false
+from sqlalchemy import Select, false, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -42,6 +42,30 @@ def get_current_user(
 ) -> User:
     effective_token = token or request.query_params.get("token")
     if not effective_token:
+        # Check X-API-Key for automated ERP integration (FR-39)
+        api_key_header = request.headers.get("X-API-Key") or request.headers.get("x-api-key")
+        if api_key_header:
+            from app.services.api_keys import verify_api_key
+
+            key = verify_api_key(db, api_key_header)
+            if not key:
+                raise _unauthorized("Invalid or inactive API key.")
+            user = db.scalar(
+                select(User).where(
+                    User.institution_id == key.institution_id,
+                    User.role == Role.INST_MAKER,
+                    User.active.is_(True),
+                )
+            )
+            if user is None:
+                user = User(
+                    id=900000 + key.id,
+                    email=f"erp-key-{key.id}@institution.internal",
+                    role=Role.INST_MAKER,
+                    institution_id=key.institution_id,
+                    active=True,
+                )
+            return user
         raise _unauthorized()
     try:
         payload = decode_token(effective_token, expected_type="access")

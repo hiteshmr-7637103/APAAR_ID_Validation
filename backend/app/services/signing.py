@@ -309,3 +309,47 @@ def verify_credential(db: Session, signed_data: dict[str, Any]) -> dict[str, Any
         "purpose": credential.get("purpose"),
         "record_hash": rec_hash,
     }
+
+
+def verify_offline_payload(
+    payload_str_or_dict: str | dict[str, Any],
+    public_key_pem: str | None = None,
+    db: Session | None = None,
+) -> dict[str, Any]:
+    """Verify signed record or compact QR payload offline or with DB session."""
+    if isinstance(payload_str_or_dict, str):
+        try:
+            data = json.loads(payload_str_or_dict)
+        except Exception:
+            return {"valid": False, "reason": "Invalid JSON format", "outcome": "INVALID"}
+    else:
+        data = payload_str_or_dict
+
+    close_db = False
+    if db is None:
+        from app.db.session import SessionLocal
+
+        db = SessionLocal()
+        close_db = True
+
+    try:
+        res = verify_credential(db, data)
+        valid = res.get("outcome") == "VALID"
+        return {
+            "valid": valid,
+            "outcome": res.get("outcome"),
+            "reason": res.get("reason"),
+            "key_id": res.get("key_id"),
+            "payload_type": "COMPACT_QR" if "kid" in data else "FULL_CREDENTIAL",
+            "claims": res.get("disclosed_fields")
+            or {
+                "status": res.get("status"),
+                "trust_tier": res.get("trust_tier"),
+                "apaar_suffix": res.get("apaar_suffix"),
+                "institution_code": res.get("institution_code"),
+                "programme_code": res.get("programme_code"),
+            },
+        }
+    finally:
+        if close_db:
+            db.close()

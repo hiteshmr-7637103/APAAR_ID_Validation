@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.api import (
+    api_keys,
     audit,
     auth,
     confirmations,
@@ -93,6 +94,7 @@ def create_app() -> FastAPI:
     api.include_router(audit.router)
     api.include_router(demo.router)
     api.include_router(evaluation.router)
+    api.include_router(api_keys.router)
     app.include_router(api)
     app.add_api_route("/health", health, methods=["GET"], tags=["ops"], include_in_schema=False)
     app.add_api_route(

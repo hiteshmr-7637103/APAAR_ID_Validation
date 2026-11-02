@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import jwt
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -12,6 +12,7 @@ from app.api.schemas import RefreshRequest, TokenPair, UserOut
 from app.core import audit
 from app.core.config import settings
 from app.core.errors import ApiError
+from app.core.rate_limit import login_limiter
 from app.core.rbac import get_current_user
 from app.core.security import create_token, decode_token, verify_password
 from app.db.models import User
@@ -36,15 +37,29 @@ def _issue_tokens(user: User) -> TokenPair:
 
 
 @router.post("/login", response_model=TokenPair, summary="OAuth2 password login")
-def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)) -> TokenPair:
+def login(
+    request: Request,
+    form: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+) -> TokenPair:
     """`username` is the user's email.
 
     Returns an access token (15 min) and a refresh token (7 days).
+    Enforces in-memory rate limiting against brute-force attacks (spec Section 12).
     """
+    client_ip = request.client.host if request.client else "unknown"
     email = form.username.strip().lower()
+    rate_key = f"{client_ip}:{email}"
+
+    # Rate limiting check (throws 429 if limit exceeded)
+    login_limiter.check(rate_key)
+
     user = db.scalar(select(User).where(func.lower(User.email) == email))
     ok = verify_password(form.password, user.password_hash if user else None)
     if not ok or user is None or not user.active:
+        # Record failed attempt in rate limiter
+        login_limiter.record_failure(rate_key)
+
         # Audited (FR-35) without the typed email (no PII in the log): the actor is the
         # matching account if one exists.
         reason = "unknown_account" if user is None else ("inactive" if ok else "bad_password")
@@ -65,6 +80,9 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
             "errors.auth_invalid_credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Success clears rate limit counter
+    login_limiter.record_success(rate_key)
     tokens = _issue_tokens(user)
     audit.record(db, "LOGIN", actor=user, entity_type="user", entity_id=user.id)
     db.commit()

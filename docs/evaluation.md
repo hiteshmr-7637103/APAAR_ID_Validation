@@ -7,7 +7,7 @@
 > algorithmic accuracy, and regulatory compliance. Real-world operational performance adapts
 > continuously via active reviewer feedback and production label telemetry.
 
-*Report generated at: `2026-11-01T18:02:43.410884+00:00`*
+*Report generated at: `2026-11-02T03:58:51.245027+00:00`*
 
 ---
 
@@ -70,7 +70,7 @@ Evaluation of atomic seat balance enforcement under parallel race conditions:
 | Benchmark Metric | Measured Latency / Throughput | Target |
 | :--- | :--- | :--- |
 | **Single-Record Validation (p50)** | `0.1 ms` | `< 50 ms` |
-| **Single-Record Validation (p95)** | `0.2 ms` | `< 100 ms` |
+| **Single-Record Validation (p95)** | `0.17 ms` | `< 100 ms` |
 | **Projected Bulk Throughput** | `8000 records/sec` | `> 500 records/sec` |
 | **Projected 10k-Row Dry-Run Time** | `1.25 seconds` | `< 30 seconds` |
 

@@ -1,4 +1,4 @@
-# Progress summary — Phases 1-8 complete, Phase 9 not started
+# Progress summary — Phases 1-9 complete (All Phases Complete)
 
 Build follows `APAAR_Ledger_Build_Spec.md` section 15's phase order. Each phase below is
 committed on `master`; tests and lint were run against a real PostgreSQL 16 for every phase
@@ -119,9 +119,27 @@ Demo mode and evaluation module implemented per spec sections 13, 14, and 15:
   - `RulesEditorPage.tsx` (`/aicte/rules`): Regulatory quota rules editor with instant JSON validation.
 **328 tests pass.** All 13 Phase 8 demo/eval tests and all 315 prior phase tests pass.
 
-## Explicitly not started (Phase 9, per spec section 15)
-- **Phase 9 — Hardening:** login rate limiting, security checklist, perf script, final full test
-  run, README traceability table (PPT claim → requirement → code → test).
+## Phase 9 — Hardening & Final Deliverables
+Hardening and production deliverables completed per spec sections 5.9, 12, 14, and 15:
+- **Login Rate Limiting (`app.core.rate_limit`):**
+  - Thread-safe in-memory sliding-window token bucket limiter (`login_limiter`).
+  - Enforces max 5 failed attempts per 60 seconds per IP/account on `POST /api/v1/auth/login`.
+  - Emits HTTP 429 (`RATE_LIMITED`) with `Retry-After` header when triggered; clears counters upon successful login.
+- **Per-Institution API Keys for ERP Integration (FR-39):**
+  - Database-backed SHA-256 hashed API keys with `apaar_live_` prefix and 256-bit entropy.
+  - Endpoints: `POST /api/v1/institutions/{id}/api-keys` (creation with single plaintext disclosure), `GET /api/v1/institutions/{id}/api-keys` (active key listing), `DELETE /api/v1/institutions/{id}/api-keys/{id}` (revocation).
+  - Direct integration into upload authentication pipeline via `X-API-Key` headers (`app.core.rbac`), granting scoped `INST_MAKER` privileges.
+- **Standalone CLI Tools (`scripts/`):**
+  - `scripts/sample_client.py`: Third-party ERP upload client script (chunked upload, dry-run, submit).
+  - `scripts/verify_offline.py`: Standalone offline credential & QR code verifier CLI.
+  - `scripts/concurrency_demo.py`: Standalone runner for the 50-thread parallel race against 5 seats.
+  - `scripts/perf.py`: Comprehensive performance benchmark measuring single-record latency, 10k throughput, and dashboard queries.
+- **Security Architecture Checklist (`docs/security.md`):**
+  - Comprehensive OWASP ASVS v4.0 verification matrix spanning V1 to V8 (architecture, authentication, session management, access control, input validation, cryptography, error handling/audit, data privacy).
+- **Traceability Table & Architecture (`README.md`):**
+  - Complete mapping of PPT Claims P1–P24 to statutory requirements, backend services, and test suites.
+  - End-to-end Mermaid architecture diagram illustrating all 9 phases.
+**All tests pass across all phases.**
 
 ## Where to look
 - `docs/architecture.md` — stack, repo layout, request flow, security posture so far.
